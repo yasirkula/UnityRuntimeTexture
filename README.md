@@ -16,6 +16,8 @@ This asset is an abstraction layer on top of `Texture2D.LoadImage` to create **T
 
 **NOTE:** Requires *Unity 2017.2* or later.
 
+**[Support the Developer ☕](https://yasirkula.itch.io/unity3d)**
+
 ## How To
 
 First, import [RuntimeTexture.unitypackage](https://github.com/yasirkula/UnityRuntimeTexture/releases) to your project. There are two ways to create **RuntimeTexture** assets:
