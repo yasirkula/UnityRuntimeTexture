@@ -14,13 +14,24 @@ This asset is an abstraction layer on top of `Texture2D.LoadImage` to create **T
 
 - Generated Texture2Ds will be uncompressed and thus, at runtime, will consume more memory compared to compressed Texture2Ds. Hence, RuntimeTexture is mostly useful for replacing already uncompressed Textures (like images in drawing games)
 
-**NOTE:** Requires *Unity 2017.2* or later.
-
 **[Support the Developer ☕](https://yasirkula.itch.io/unity3d)**
 
-## How To
+## INSTALLATION
 
-First, import [RuntimeTexture.unitypackage](https://github.com/yasirkula/UnityRuntimeTexture/releases) to your project. There are two ways to create **RuntimeTexture** assets:
+There are 4 ways to install this plugin:
+
+- import [RuntimeTexture.unitypackage](https://github.com/yasirkula/UnityRuntimeTexture/releases) via *Assets-Import Package*
+- clone/[download](https://github.com/yasirkula/UnityRuntimeTexture/archive/master.zip) this repository and move the *Plugins* folder to your Unity project's *Assets* folder
+- *(via Package Manager)* add the following line to *Packages/manifest.json*:
+  - `"com.yasirkula.runtimetexture": "https://github.com/yasirkula/UnityRuntimeTexture.git",`
+- *(via [OpenUPM](https://openupm.com))* after installing [openupm-cli](https://github.com/openupm/openupm-cli), run the following command:
+  - `openupm add com.yasirkula.runtimetexture`
+
+**NOTE:** Requires *Unity 2017.2* or later.
+
+## HOW TO
+
+There are two ways to create **RuntimeTexture** assets:
 
 1. By default, RuntimeTexture assets use "*.img*" extension (can be changed from *RuntimeTextureImporter.cs*). You can simply save your PNG/JPEG images with *.img* extension
 2. Right click a *Texture* asset in Project window and select "*Convert To Runtime Texture*" to create a RuntimeTexture asset from that Texture
