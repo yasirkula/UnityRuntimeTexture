@@ -35,6 +35,9 @@ namespace RuntimeTextureNamespace
 		private bool generateMipMaps = true;
 
 		[SerializeField]
+		private TextureWrapMode wrapMode;
+
+		[SerializeField]
 		private bool saveAsPNG = true;
 		[SerializeField]
 		[Range( 0, 100 )]
@@ -112,7 +115,7 @@ namespace RuntimeTextureNamespace
 			ResizeTexture( ref tex, new Vector2Int( ICON_SIZE, ICON_SIZE ), new Vector2Int( 0, 0 ), new Color( 0, 0, 0, 0 ) );
 
 			RuntimeTexture runtimeTexture = ScriptableObject.CreateInstance<RuntimeTexture>();
-			( (RuntimeTexture.IEditorInterface) runtimeTexture ).Initialize( bytes, scaledSize, generateMipMaps, readWriteEnabled );
+			( (RuntimeTexture.IEditorInterface) runtimeTexture ).Initialize( bytes, scaledSize, generateMipMaps, readWriteEnabled, wrapMode );
 
 #if UNITY_2017_3_OR_NEWER
 			ctx.AddObjectToAsset( "main obj", runtimeTexture, tex );

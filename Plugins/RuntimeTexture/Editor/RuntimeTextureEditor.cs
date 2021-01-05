@@ -18,6 +18,7 @@ namespace RuntimeTextureNamespace
 		private SerializedProperty paddingColorProp;
 		private SerializedProperty readWriteEnabledProp;
 		private SerializedProperty generateMipMapsProp;
+		private SerializedProperty wrapMode;
 		private SerializedProperty saveAsPNGProp;
 		private SerializedProperty jpegQualityProp;
 
@@ -52,6 +53,7 @@ namespace RuntimeTextureNamespace
 			paddingColorProp = serializedObject.FindProperty( "paddingColor" );
 			readWriteEnabledProp = serializedObject.FindProperty( "readWriteEnabled" );
 			generateMipMapsProp = serializedObject.FindProperty( "generateMipMaps" );
+			wrapMode = serializedObject.FindProperty( "wrapMode" );
 			saveAsPNGProp = serializedObject.FindProperty( "saveAsPNG" );
 			jpegQualityProp = serializedObject.FindProperty( "jpegQuality" );
 		}
@@ -88,6 +90,10 @@ namespace RuntimeTextureNamespace
 
 			EditorGUILayout.PropertyField( readWriteEnabledProp );
 			EditorGUILayout.PropertyField( generateMipMapsProp );
+
+			EditorGUILayout.Space();
+
+			EditorGUILayout.PropertyField( wrapMode );
 
 			EditorGUILayout.Space();
 
