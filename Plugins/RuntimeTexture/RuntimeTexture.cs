@@ -11,7 +11,7 @@ public class RuntimeTexture : ScriptableObject
 		long Length { get; }
 		Texture2D Texture { get; }
 
-		void Initialize( byte[] bytes, Vector2Int size, bool generateMipMaps, bool readWriteEnabled );
+		void Initialize( byte[] bytes, Vector2Int size, bool hasAlphaChannel, bool generateMipMaps, bool readWriteEnabled, TextureWrapMode wrapMode, FilterMode filterMode, int anisoLevel );
 	}
 #endif
 
@@ -43,16 +43,31 @@ public class RuntimeTexture : ScriptableObject
 	public int Height { get { return m_height; } }
 
 	[SerializeField]
+	private bool hasAlphaChannel = true;
+
+	[SerializeField]
 	private bool readWriteEnabled = false;
 	[SerializeField]
 	private bool generateMipMaps = true;
+	[SerializeField]
+	private TextureWrapMode wrapMode = TextureWrapMode.Repeat;
+	[SerializeField]
+	private FilterMode filterMode = FilterMode.Bilinear;
+	[SerializeField]
+	[Range( 0, 16 )]
+	private int anisoLevel = 1;
 #pragma warning restore 0649
 
 	private Texture2D GetTexture( bool markNonReadable )
 	{
-		Texture2D result = new Texture2D( 2, 2, TextureFormat.RGBA32, generateMipMaps );
-		result.LoadImage( bytes, markNonReadable );
+		Texture2D result = new Texture2D( 2, 2, hasAlphaChannel ? TextureFormat.RGBA32 : TextureFormat.RGB24, generateMipMaps )
+		{
+			wrapMode = wrapMode,
+			filterMode = filterMode,
+			anisoLevel = anisoLevel
+		};
 
+		result.LoadImage( bytes, markNonReadable );
 		return result;
 	}
 
@@ -60,13 +75,17 @@ public class RuntimeTexture : ScriptableObject
 	long IEditorInterface.Length { get { return bytes.LongLength; } }
 	Texture2D IEditorInterface.Texture { get { return GetTexture( false ); } }
 
-	void IEditorInterface.Initialize( byte[] bytes, Vector2Int size, bool generateMipMaps, bool readWriteEnabled )
+	void IEditorInterface.Initialize( byte[] bytes, Vector2Int size, bool hasAlphaChannel, bool generateMipMaps, bool readWriteEnabled, TextureWrapMode wrapMode, FilterMode filterMode, int anisoLevel )
 	{
 		this.bytes = bytes;
 		this.m_width = size.x;
 		this.m_height = size.y;
+		this.hasAlphaChannel = hasAlphaChannel;
 		this.generateMipMaps = generateMipMaps;
 		this.readWriteEnabled = readWriteEnabled;
+		this.wrapMode = wrapMode;
+		this.filterMode = filterMode;
+		this.anisoLevel = Mathf.Clamp( anisoLevel, 0, 16 );
 	}
 #endif
 }
