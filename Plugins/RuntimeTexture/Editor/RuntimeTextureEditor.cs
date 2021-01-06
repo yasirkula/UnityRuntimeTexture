@@ -18,7 +18,9 @@ namespace RuntimeTextureNamespace
 		private SerializedProperty paddingColorProp;
 		private SerializedProperty readWriteEnabledProp;
 		private SerializedProperty generateMipMapsProp;
-		private SerializedProperty wrapMode;
+		private SerializedProperty wrapModeProp;
+		private SerializedProperty filterModeProp;
+		private SerializedProperty anisoLevelProp;
 		private SerializedProperty saveAsPNGProp;
 		private SerializedProperty jpegQualityProp;
 
@@ -53,7 +55,9 @@ namespace RuntimeTextureNamespace
 			paddingColorProp = serializedObject.FindProperty( "paddingColor" );
 			readWriteEnabledProp = serializedObject.FindProperty( "readWriteEnabled" );
 			generateMipMapsProp = serializedObject.FindProperty( "generateMipMaps" );
-			wrapMode = serializedObject.FindProperty( "wrapMode" );
+			wrapModeProp = serializedObject.FindProperty( "wrapMode" );
+			filterModeProp = serializedObject.FindProperty( "filterMode" );
+			anisoLevelProp = serializedObject.FindProperty( "anisoLevel" );
 			saveAsPNGProp = serializedObject.FindProperty( "saveAsPNG" );
 			jpegQualityProp = serializedObject.FindProperty( "jpegQuality" );
 		}
@@ -90,10 +94,18 @@ namespace RuntimeTextureNamespace
 
 			EditorGUILayout.PropertyField( readWriteEnabledProp );
 			EditorGUILayout.PropertyField( generateMipMapsProp );
+			EditorGUILayout.PropertyField( wrapModeProp );
+			EditorGUILayout.PropertyField( filterModeProp );
+			EditorGUILayout.PropertyField( anisoLevelProp );
 
-			EditorGUILayout.Space();
-
-			EditorGUILayout.PropertyField( wrapMode );
+			// Source: https://github.com/Unity-Technologies/UnityCsReference/blob/61f92bd79ae862c4465d35270f9d1d57befd1761/Editor/Mono/Inspector/TextureInspector.cs#L502-L511
+			if( anisoLevelProp.intValue > 1 )
+			{
+				if( QualitySettings.anisotropicFiltering == AnisotropicFiltering.Disable )
+					EditorGUILayout.HelpBox( "Anisotropic filtering is disabled for all textures in Quality Settings.", MessageType.Info );
+				else if( QualitySettings.anisotropicFiltering == AnisotropicFiltering.ForceEnable )
+					EditorGUILayout.HelpBox( "Anisotropic filtering is enabled for all textures in Quality Settings.", MessageType.Info );
+			}
 
 			EditorGUILayout.Space();
 

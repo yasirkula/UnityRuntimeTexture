@@ -33,9 +33,13 @@ namespace RuntimeTextureNamespace
 		private bool readWriteEnabled = false;
 		[SerializeField]
 		private bool generateMipMaps = true;
-
 		[SerializeField]
-		private TextureWrapMode wrapMode;
+		private TextureWrapMode wrapMode = TextureWrapMode.Repeat;
+		[SerializeField]
+		private FilterMode filterMode = FilterMode.Bilinear;
+		[SerializeField]
+		[Range( 0, 16 )]
+		private int anisoLevel = 1;
 
 		[SerializeField]
 		private bool saveAsPNG = true;
@@ -47,7 +51,7 @@ namespace RuntimeTextureNamespace
 		public override void OnImportAsset( AssetImportContext ctx )
 		{
 			byte[] bytes = File.ReadAllBytes( ctx.assetPath );
-			Texture2D tex = new Texture2D( 2, 2, TextureFormat.RGBA32, false );
+			Texture2D tex = new Texture2D( 2, 2, saveAsPNG ? TextureFormat.RGBA32 : TextureFormat.RGB24, false );
 			tex.LoadImage( bytes );
 
 			originalSize = new Vector2Int( tex.width, tex.height );
@@ -74,10 +78,31 @@ namespace RuntimeTextureNamespace
 				padding = new Vector2Int( 0, 0 );
 			}
 
+			// Image has alpha channel if it is saved as PNG and either it has transparent padding or its pixels aren't all opaque
+			bool hasAlphaChannel = saveAsPNG;
+			if( hasAlphaChannel && ( ( padding.x == 0 && padding.y == 0 ) || paddingColor.a >= 1f ) )
+			{
+				bool hasTransparentPixels = false;
+				Color32[] pixels = tex.GetPixels32();
+				for( int i = 0; i < pixels.Length; i++ )
+				{
+					if( pixels[i].a < 255 )
+					{
+						hasTransparentPixels = true;
+						break;
+					}
+				}
+
+				if( !hasTransparentPixels )
+					hasAlphaChannel = false;
+			}
+
+			TextureFormat textureFormat = hasAlphaChannel ? TextureFormat.RGBA32 : TextureFormat.RGB24;
+
 			if( scaledSize != originalSize || padding.x != 0 || padding.y != 0 )
 			{
 				if( !preserveAspectRatio )
-					ResizeTexture( ref tex, scaledSize, padding, paddingColor );
+					ResizeTexture( ref tex, textureFormat, scaledSize, padding, paddingColor );
 				else
 				{
 					float aspectRatio = (float) originalSize.x / originalSize.y;
@@ -98,7 +123,7 @@ namespace RuntimeTextureNamespace
 							imageContentsSize.y = targetHeight;
 					}
 
-					ResizeTexture( ref tex, scaledSize, scaledSize - imageContentsSize, paddingColor );
+					ResizeTexture( ref tex, textureFormat, scaledSize, scaledSize - imageContentsSize, paddingColor );
 				}
 
 				bytes = saveAsPNG ? tex.EncodeToPNG() : tex.EncodeToJPG( Mathf.Clamp( jpegQuality, 1, 100 ) );
@@ -112,10 +137,10 @@ namespace RuntimeTextureNamespace
 			}
 
 			// Generate icon
-			ResizeTexture( ref tex, new Vector2Int( ICON_SIZE, ICON_SIZE ), new Vector2Int( 0, 0 ), new Color( 0, 0, 0, 0 ) );
+			ResizeTexture( ref tex, textureFormat, new Vector2Int( ICON_SIZE, ICON_SIZE ), new Vector2Int( 0, 0 ), new Color( 0, 0, 0, 0 ) );
 
 			RuntimeTexture runtimeTexture = ScriptableObject.CreateInstance<RuntimeTexture>();
-			( (RuntimeTexture.IEditorInterface) runtimeTexture ).Initialize( bytes, scaledSize, generateMipMaps, readWriteEnabled, wrapMode );
+			( (RuntimeTexture.IEditorInterface) runtimeTexture ).Initialize( bytes, scaledSize, hasAlphaChannel, generateMipMaps, readWriteEnabled, wrapMode, filterMode, anisoLevel );
 
 #if UNITY_2017_3_OR_NEWER
 			ctx.AddObjectToAsset( "main obj", runtimeTexture, tex );
@@ -157,7 +182,7 @@ namespace RuntimeTextureNamespace
 						if( !originalTexture )
 							continue;
 
-						ResizeTexture( ref originalTexture, new Vector2Int( originalTexture.width, originalTexture.height ), new Vector2Int( 0, 0 ), new Color( 0f, 0f, 0f, 0f ) );
+						ResizeTexture( ref originalTexture, TextureFormat.RGBA32, new Vector2Int( originalTexture.width, originalTexture.height ), new Vector2Int( 0, 0 ), new Color( 0f, 0f, 0f, 0f ) );
 						fileContents = originalTexture.EncodeToPNG();
 					}
 
@@ -193,7 +218,7 @@ namespace RuntimeTextureNamespace
 			return Selection.GetFiltered<Texture>( SelectionMode.Assets ).Length > 0;
 		}
 
-		private static void ResizeTexture( ref Texture2D texture, Vector2Int size, Vector2Int padding, Color clearColor )
+		private static void ResizeTexture( ref Texture2D texture, TextureFormat format, Vector2Int size, Vector2Int padding, Color clearColor )
 		{
 			Texture2D result = null;
 
@@ -205,7 +230,7 @@ namespace RuntimeTextureNamespace
 				Graphics.Blit( texture, rt );
 				RenderTexture.active = rt;
 
-				result = new Texture2D( size.x, size.y, TextureFormat.RGBA32, false );
+				result = new Texture2D( size.x, size.y, format, false );
 				if( padding.x > 0 || padding.y > 0 )
 				{
 					Color32[] pixels = new Color32[result.width * result.height];
