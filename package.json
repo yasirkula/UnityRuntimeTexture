@@ -2,5 +2,8 @@
   "name": "com.yasirkula.runtimetexture",
   "displayName": "Runtime Texture",
   "version": "1.0.5",
+  "documentationUrl": "https://github.com/yasirkula/UnityRuntimeTexture",
+  "changelogUrl": "https://github.com/yasirkula/UnityRuntimeTexture/releases",
+  "licensesUrl": "https://github.com/yasirkula/UnityRuntimeTexture/blob/master/LICENSE.txt",
   "description": "This asset is an abstraction layer on top of Texture2D.LoadImage to create Texture2D objects at runtime from raw PNG/JPEG data. Image files' contents are stored in RuntimeTexture assets and are used to create Texture2Ds on demand. With this abstraction layer, you no longer need to store the image files in e.g. StreamingAssets directory, you can hold references to RuntimeTexture assets in your scripts and generate Texture2Ds using them."
 }
