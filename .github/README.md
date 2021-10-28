@@ -14,6 +14,8 @@ This asset is an abstraction layer on top of `Texture2D.LoadImage` to create **T
 
 - Generated Texture2Ds will be uncompressed and thus, at runtime, will consume more memory compared to compressed Texture2Ds. Hence, RuntimeTexture is mostly useful for replacing already uncompressed Textures (like images in drawing games)
 
+**Discord:** https://discord.gg/UJJt549AaV
+
 **[Support the Developer ☕](https://yasirkula.itch.io/unity3d)**
 
 ## INSTALLATION
