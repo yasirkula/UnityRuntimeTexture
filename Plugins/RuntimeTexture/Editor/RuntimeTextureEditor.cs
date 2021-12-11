@@ -39,18 +39,6 @@ namespace RuntimeTextureNamespace
 
 			runtimeTextures = targets;
 			textures = new Texture2D[runtimeTextures.Length];
-			long totalSize = 0L;
-			for( int i = 0; i < runtimeTextures.Length; i++ )
-			{
-				RuntimeTexture.IEditorInterface runtimeTexture = AssetDatabase.LoadAssetAtPath<RuntimeTexture>( ( (RuntimeTextureImporter) runtimeTextures[i] ).assetPath );
-				textures[i] = runtimeTexture.Texture;
-				totalSize += runtimeTexture.Length;
-			}
-
-			if( runtimeTextures.Length == 1 )
-				fileSizeInfoString = "Size: " + GetReadableFilesize( totalSize );
-			else
-				fileSizeInfoString = string.Concat( "Size: ", GetReadableFilesize( totalSize ), " (", runtimeTextures.Length, " objects)" );
 
 			originalSizeProp = serializedObject.FindProperty( "originalSize" );
 			scaledSizeProp = serializedObject.FindProperty( "scaledSize" );
@@ -64,6 +52,8 @@ namespace RuntimeTextureNamespace
 			anisoLevelProp = serializedObject.FindProperty( "anisoLevel" );
 			saveAsPNGProp = serializedObject.FindProperty( "saveAsPNG" );
 			jpegQualityProp = serializedObject.FindProperty( "jpegQuality" );
+
+			CalculateFilesize();
 		}
 
 		public override void OnDisable()
@@ -79,6 +69,10 @@ namespace RuntimeTextureNamespace
 
 		public override void OnInspectorGUI()
 		{
+#if UNITY_2019_2_OR_NEWER
+			serializedObject.Update();
+#endif
+
 			bool guiEnabled = GUI.enabled;
 			GUI.enabled = false;
 			EditorGUILayout.PropertyField( originalSizeProp );
@@ -125,7 +119,22 @@ namespace RuntimeTextureNamespace
 
 			EditorGUILayout.HelpBox( fileSizeInfoString, MessageType.None );
 
+#if UNITY_2019_2_OR_NEWER
+			serializedObject.ApplyModifiedProperties();
+#endif
+
 			ApplyRevertGUI();
+		}
+
+		protected override bool OnApplyRevertGUI()
+		{
+			if( base.OnApplyRevertGUI() )
+			{
+				CalculateFilesize();
+				return true;
+			}
+
+			return false;
 		}
 
 		public override bool HasPreviewGUI()
@@ -171,6 +180,22 @@ namespace RuntimeTextureNamespace
 
 				GUI.DrawTexture( r, textures[index] );
 			}
+		}
+
+		private void CalculateFilesize()
+		{
+			long totalSize = 0L;
+			for( int i = 0; i < runtimeTextures.Length; i++ )
+			{
+				RuntimeTexture.IEditorInterface runtimeTexture = AssetDatabase.LoadAssetAtPath<RuntimeTexture>( ( (RuntimeTextureImporter) runtimeTextures[i] ).assetPath );
+				textures[i] = runtimeTexture.Texture;
+				totalSize += runtimeTexture.Length;
+			}
+
+			if( runtimeTextures.Length == 1 )
+				fileSizeInfoString = "Size: " + GetReadableFilesize( totalSize );
+			else
+				fileSizeInfoString = string.Concat( "Size: ", GetReadableFilesize( totalSize ), " (", runtimeTextures.Length, " objects)" );
 		}
 
 		private string GetReadableFilesize( long bytes )
