@@ -16,7 +16,7 @@ This asset is an abstraction layer on top of `Texture2D.LoadImage` to create **T
 
 **Discord:** https://discord.gg/UJJt549AaV
 
-**[Support the Developer ☕](https://yasirkula.itch.io/unity3d)**
+**[GitHub Sponsors ☕](https://github.com/sponsors/yasirkula)**
 
 ## INSTALLATION
 
