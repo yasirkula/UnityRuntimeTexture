@@ -1,25 +1,14 @@
-﻿using UnityEngine;
-#if UNITY_2020_2_OR_NEWER
-using UnityEditor.AssetImporters;
-#else
-using UnityEditor.Experimental.AssetImporters;
-#endif
+﻿using System;
 using System.IO;
 using UnityEditor;
-using System.Collections.Generic;
-using SC = System.StringComparison;
+using UnityEditor.AssetImporters;
+using UnityEngine;
 
 namespace RuntimeTextureNamespace
 {
-	[ScriptedImporter( 1, EXTENSION )]
+    [ScriptedImporter(1, new string[0], new string[] { "png", "jpg", "jpeg" })]
 	public class RuntimeTextureImporter : ScriptedImporter
 	{
-		private const int ICON_SIZE = 64;
-
-		public const string EXTENSION = "img";
-		public const string EXTENSION_WITH_PERIOD = ".img";
-
-#pragma warning disable 0649
 		[SerializeField]
 		private Vector2Int originalSize;
 		[SerializeField]
@@ -46,23 +35,22 @@ namespace RuntimeTextureNamespace
 		private int anisoLevel = 1;
 
 		[SerializeField]
-		private bool saveAsPNG = true;
+		private bool exportAsPNG = true;
 		[SerializeField]
 		[Range( 0, 100 )]
 		private int jpegQuality = 100;
-#pragma warning restore 0649
 
 		public override void OnImportAsset( AssetImportContext ctx )
 		{
-			byte[] bytes = File.ReadAllBytes( ctx.assetPath );
-			Texture2D tex = new Texture2D( 2, 2, saveAsPNG ? TextureFormat.RGBA32 : TextureFormat.RGB24, false );
-			tex.LoadImage( bytes );
+            byte[] bytes = File.ReadAllBytes(ctx.assetPath);
+            Texture2D tex = new Texture2D(2, 2, exportAsPNG ? TextureFormat.RGBA32 : TextureFormat.RGB24, false);
+            tex.LoadImage(bytes);
 
 			originalSize = new Vector2Int( tex.width, tex.height );
 
 			if( scaledSize.x < 0 || scaledSize.y < 0 )
 			{
-				LogImportError( ctx, "Scaled Size can't be smaller than 0!" );
+                ctx.LogImportError("Scaled Size can't be smaller than 0!");
 				scaledSize = new Vector2Int( 0, 0 );
 			}
 
@@ -73,34 +61,17 @@ namespace RuntimeTextureNamespace
 
 			if( padding.x < 0 || padding.y < 0 )
 			{
-				LogImportError( ctx, "Padding can't be smaller than 0!" );
+                ctx.LogImportError("Padding can't be smaller than 0!");
 				padding = new Vector2Int( 0, 0 );
 			}
 			else if( padding.x >= scaledSize.x || padding.y >= scaledSize.y )
 			{
-				LogImportError( ctx, "Padding can't be greater than or equal to Scaled Size!" );
+                ctx.LogImportError("Padding can't be greater than or equal to Scaled Size!");
 				padding = new Vector2Int( 0, 0 );
 			}
 
-			// Image has alpha channel if it is saved as PNG and either it has transparent padding or its pixels aren't all opaque
-			bool hasAlphaChannel = saveAsPNG;
-			if( hasAlphaChannel && ( ( padding.x == 0 && padding.y == 0 ) || paddingColor.a >= 1f ) )
-			{
-				bool hasTransparentPixels = false;
-				Color32[] pixels = tex.GetPixels32();
-				for( int i = 0; i < pixels.Length; i++ )
-				{
-					if( pixels[i].a < 255 )
-					{
-						hasTransparentPixels = true;
-						break;
-					}
-				}
-
-				if( !hasTransparentPixels )
-					hasAlphaChannel = false;
-			}
-
+            // Image has alpha channel if it is saved as PNG and either it has transparent padding or its pixels aren't all opaque
+            bool hasAlphaChannel = exportAsPNG && ((padding.sqrMagnitude > 0 && paddingColor.a < 1f) || Array.FindIndex(tex.GetPixels32(0), (pixel) => pixel.a < 255) >= 0);
 			TextureFormat textureFormat = hasAlphaChannel ? TextureFormat.RGBA32 : TextureFormat.RGB24;
 
 			if( scaledSize != originalSize || padding.x != 0 || padding.y != 0 )
@@ -130,99 +101,35 @@ namespace RuntimeTextureNamespace
 					ResizeTexture( ref tex, textureFormat, scaledSize, scaledSize - imageContentsSize, paddingColor );
 				}
 
-				bytes = saveAsPNG ? tex.EncodeToPNG() : tex.EncodeToJPG( Mathf.Clamp( jpegQuality, 1, 100 ) );
+				bytes = exportAsPNG ? tex.EncodeToPNG() : tex.EncodeToJPG( Mathf.Clamp( jpegQuality, 1, 100 ) );
 			}
 			else
 			{
 				// Check if encoding the image as JPEG or PNG will produce a smaller image file
-				byte[] bytes2 = saveAsPNG ? tex.EncodeToPNG() : tex.EncodeToJPG( Mathf.Clamp( jpegQuality, 1, 100 ) );
+				byte[] bytes2 = exportAsPNG ? tex.EncodeToPNG() : tex.EncodeToJPG( Mathf.Clamp( jpegQuality, 1, 100 ) );
 				if( bytes2.Length < bytes.Length )
 					bytes = bytes2;
 			}
 
-			// Generate icon
-			ResizeTexture( ref tex, textureFormat, new Vector2Int( ICON_SIZE, ICON_SIZE ), new Vector2Int( 0, 0 ), new Color( 0, 0, 0, 0 ) );
+            // Generate icon
+            ResizeTexture(ref tex, textureFormat, new Vector2Int(64, 64), Vector2Int.zero, Color.clear);
 
-			RuntimeTexture runtimeTexture = ScriptableObject.CreateInstance<RuntimeTexture>();
-			( (RuntimeTexture.IEditorInterface) runtimeTexture ).Initialize( bytes, scaledSize, hasAlphaChannel, generateMipMaps, readWriteEnabled, wrapMode, filterMode, anisoLevel );
+            RuntimeTexture runtimeTexture = ScriptableObject.CreateInstance<RuntimeTexture>();
+            runtimeTexture.bytes = bytes;
+            runtimeTexture.Width = scaledSize.x;
+            runtimeTexture.Height = scaledSize.y;
+            runtimeTexture.HasAlphaChannel = hasAlphaChannel;
+            runtimeTexture.GenerateMipMaps = generateMipMaps;
+            runtimeTexture.ReadWriteEnabled = readWriteEnabled;
+            runtimeTexture.WrapMode = wrapMode;
+            runtimeTexture.FilterMode = filterMode;
+            runtimeTexture.AnisoLevel = Mathf.Clamp(anisoLevel, 0, 16);
 
-#if UNITY_2017_3_OR_NEWER
 			ctx.AddObjectToAsset( "main obj", runtimeTexture, tex );
 			ctx.SetMainObject( runtimeTexture );
-#else
-			ctx.SetMainAsset( "main obj", runtimeTexture, tex );
-#endif
 		}
 
-		private void LogImportError( AssetImportContext ctx, string error )
-		{
-#if UNITY_2018_1_OR_NEWER
-			ctx.LogImportError( error );
-#else
-			Debug.LogError( error );
-#endif
-		}
-
-		[MenuItem( "Assets/Convert To Runtime Texture (" + EXTENSION_WITH_PERIOD + ")", priority = 400 )]
-		private static void ConvertToRuntimeTexture()
-		{
-			Texture[] selection = Selection.GetFiltered<Texture>( SelectionMode.Assets );
-			List<string> runtimeTexturePaths = new List<string>();
-			try
-			{
-				AssetDatabase.StartAssetEditing();
-
-				for( int i = 0; i < selection.Length; i++ )
-				{
-					string path = AssetDatabase.GetAssetPath( selection[i] );
-					if( string.IsNullOrEmpty( path ) )
-						continue;
-
-					byte[] fileContents = null;
-					if( !path.EndsWith( ".png", SC.OrdinalIgnoreCase ) && !path.EndsWith( ".jpeg", SC.OrdinalIgnoreCase ) && !path.EndsWith( ".jpg", SC.OrdinalIgnoreCase ) )
-					{
-						// Can't load e.g. a PSD image via Texture2D.LoadImage, save the image as PNG in this case
-						Texture2D originalTexture = selection[i] as Texture2D;
-						if( !originalTexture )
-							continue;
-
-						ResizeTexture( ref originalTexture, TextureFormat.RGBA32, new Vector2Int( originalTexture.width, originalTexture.height ), new Vector2Int( 0, 0 ), new Color( 0f, 0f, 0f, 0f ) );
-						fileContents = originalTexture.EncodeToPNG();
-					}
-
-					string runtimeTexturePath = Path.ChangeExtension( path, EXTENSION_WITH_PERIOD );
-					if( fileContents == null )
-						File.Copy( path, runtimeTexturePath, true );
-					else
-						File.WriteAllBytes( runtimeTexturePath, fileContents );
-
-					runtimeTexturePaths.Add( runtimeTexturePath );
-				}
-			}
-			finally
-			{
-				AssetDatabase.StopAssetEditing();
-				AssetDatabase.Refresh();
-			}
-
-			// Update Unity's selection
-			if( runtimeTexturePaths.Count > 0 )
-			{
-				Object[] newSelection = new Object[runtimeTexturePaths.Count];
-				for( int i = 0; i < runtimeTexturePaths.Count; i++ )
-					newSelection[i] = AssetDatabase.LoadAssetAtPath<RuntimeTexture>( runtimeTexturePaths[i] );
-
-				Selection.objects = newSelection;
-			}
-		}
-
-		[MenuItem( "Assets/Convert To Runtime Texture (" + EXTENSION_WITH_PERIOD + ")", validate = true )]
-		private static bool ConvertToRuntimeTextureValidate()
-		{
-			return Selection.GetFiltered<Texture>( SelectionMode.Assets ).Length > 0;
-		}
-
-		private static void ResizeTexture( ref Texture2D texture, TextureFormat format, Vector2Int size, Vector2Int padding, Color clearColor )
+		internal static void ResizeTexture( ref Texture2D texture, TextureFormat format, Vector2Int size, Vector2Int padding, Color clearColor )
 		{
 			Texture2D result = null;
 
@@ -235,20 +142,17 @@ namespace RuntimeTextureNamespace
 				RenderTexture.active = rt;
 
 				result = new Texture2D( size.x, size.y, format, false );
-				if( padding.x > 0 || padding.y > 0 )
-				{
-					Color32[] pixels = new Color32[result.width * result.height];
-					Color32 clearPixel = clearColor;
-					for( int i = 0; i < pixels.Length; i++ )
-						pixels[i] = clearPixel;
-
-					result.SetPixels32( pixels );
-				}
+                if (padding.sqrMagnitude > 0)
+                {
+                    Color32[] pixels = new Color32[result.width * result.height];
+                    Array.Fill(pixels, clearColor);
+                    result.SetPixels32(pixels);
+                }
 
 				result.ReadPixels( new Rect( 0, 0, rt.width, rt.height ), padding.x / 2, padding.y / 2, false );
 				result.Apply( false, false );
 			}
-			catch( System.Exception e )
+            catch (Exception e)
 			{
 				Debug.LogException( e );
 

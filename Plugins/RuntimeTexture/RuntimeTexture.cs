@@ -1,91 +1,64 @@
 ﻿using UnityEngine;
 
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("RuntimeTexture.Editor")]
 public class RuntimeTexture : ScriptableObject
-#if UNITY_EDITOR
-	, RuntimeTexture.IEditorInterface
-#endif
 {
-#if UNITY_EDITOR
-	public interface IEditorInterface
-	{
-		long Length { get; }
-		Texture2D Texture { get; }
+    private Texture2D m_texture;
+    public Texture2D Texture
+    {
+        get
+        {
+            if (!m_texture)
+                m_texture = CreateTexture(!ReadWriteEnabled);
 
-		void Initialize( byte[] bytes, Vector2Int size, bool hasAlphaChannel, bool generateMipMaps, bool readWriteEnabled, TextureWrapMode wrapMode, FilterMode filterMode, int anisoLevel );
-	}
-#endif
+            return m_texture;
+        }
+    }
 
-#pragma warning disable 0649
-	[SerializeField]
-	[HideInInspector]
-	private byte[] bytes;
+    [SerializeField]
+    internal byte[] bytes;
 
-	private Texture2D m_texture;
-	public Texture2D Texture
-	{
-		get
-		{
-			if( !m_texture )
-				m_texture = GetTexture( !readWriteEnabled );
+    [field: SerializeField]
+    public int Width { get; internal set; }
+    [field: SerializeField]
+    public int Height { get; internal set; }
 
-			return m_texture;
-		}
-	}
+    [field: SerializeField]
+    public bool HasAlphaChannel { get; internal set; }
 
-	[SerializeField]
-	[HideInInspector]
-	private int m_width;
-	public int Width { get { return m_width; } }
+    [field: SerializeField]
+    public bool ReadWriteEnabled { get; set; }
+    [field: SerializeField]
+    public bool GenerateMipMaps { get; set; }
+    [field: SerializeField]
+    public TextureWrapMode WrapMode { get; set; }
+    [field: SerializeField]
+    public FilterMode FilterMode { get; set; }
+    [field: SerializeField]
+    public int AnisoLevel { get; set; }
 
-	[SerializeField]
-	[HideInInspector]
-	private int m_height;
-	public int Height { get { return m_height; } }
+    internal Texture2D CreateTexture(bool markNonReadable)
+    {
+        Texture2D result = new Texture2D(2, 2, HasAlphaChannel ? TextureFormat.RGBA32 : TextureFormat.RGB24, GenerateMipMaps)
+        {
+            wrapMode = WrapMode,
+            filterMode = FilterMode,
+            anisoLevel = AnisoLevel
+        };
 
-	[SerializeField]
-	private bool hasAlphaChannel = true;
+        result.LoadImage(bytes, markNonReadable);
+        return result;
+    }
 
-	[SerializeField]
-	private bool readWriteEnabled = false;
-	[SerializeField]
-	private bool generateMipMaps = true;
-	[SerializeField]
-	private TextureWrapMode wrapMode = TextureWrapMode.Repeat;
-	[SerializeField]
-	private FilterMode filterMode = FilterMode.Bilinear;
-	[SerializeField]
-	[Range( 0, 16 )]
-	private int anisoLevel = 1;
-#pragma warning restore 0649
+    public bool DestroyTexture()
+    {
+        if (m_texture != null)
+        {
+            DestroyImmediate(m_texture);
+            m_texture = null;
+            return true;
+        }
 
-	private Texture2D GetTexture( bool markNonReadable )
-	{
-		Texture2D result = new Texture2D( 2, 2, hasAlphaChannel ? TextureFormat.RGBA32 : TextureFormat.RGB24, generateMipMaps )
-		{
-			wrapMode = wrapMode,
-			filterMode = filterMode,
-			anisoLevel = anisoLevel
-		};
-
-		result.LoadImage( bytes, markNonReadable );
-		return result;
-	}
-
-#if UNITY_EDITOR
-	long IEditorInterface.Length { get { return bytes.LongLength; } }
-	Texture2D IEditorInterface.Texture { get { return GetTexture( false ); } }
-
-	void IEditorInterface.Initialize( byte[] bytes, Vector2Int size, bool hasAlphaChannel, bool generateMipMaps, bool readWriteEnabled, TextureWrapMode wrapMode, FilterMode filterMode, int anisoLevel )
-	{
-		this.bytes = bytes;
-		this.m_width = size.x;
-		this.m_height = size.y;
-		this.hasAlphaChannel = hasAlphaChannel;
-		this.generateMipMaps = generateMipMaps;
-		this.readWriteEnabled = readWriteEnabled;
-		this.wrapMode = wrapMode;
-		this.filterMode = filterMode;
-		this.anisoLevel = Mathf.Clamp( anisoLevel, 0, 16 );
-	}
-#endif
+        return false;
+    }
 }

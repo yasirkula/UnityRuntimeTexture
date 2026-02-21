@@ -29,17 +29,10 @@ There are 4 ways to install this plugin:
 - *(via [OpenUPM](https://openupm.com))* after installing [openupm-cli](https://github.com/openupm/openupm-cli), run the following command:
   - `openupm add com.yasirkula.runtimetexture`
 
-**NOTE:** Requires *Unity 2017.2* or later.
-
 ## HOW TO
 
-There are two ways to create **RuntimeTexture** assets:
+To create a **RuntimeTexture** asset, simply select a PNG/JPEG asset and from the Inspector header, set the Importer to *RuntimeTextureNamespace.RuntimeTextureImporter*:
 
-1. By default, RuntimeTexture assets use "*.img*" extension (can be changed from *RuntimeTextureImporter.cs*). You can simply save your PNG/JPEG images with *.img* extension
-2. Right click a *Texture* asset in Project window and select "*Convert To Runtime Texture*" to create a RuntimeTexture asset from that Texture
+![TextureImporterSelection](Images/TextureImporterSelection.png)
 
-RuntimeTexture assets have the following properties:
-
-- `Texture2D Texture { get; }`: if a Texture2D isn't yet created for this RuntimeTexture, generates a Texture2D using Texture2D.LoadImage and returns it. Later calls will simply return that existing Texture2D
-- `int Width { get; }`: width of the image
-- `int Height { get; }`: height of the image
+To get a Texture2D from a RuntimeTexture asset, call its `Texture` property. The first call will initialize the Texture2D using `Texture2D.LoadImage`. Later calls will simply return that existing Texture2D. Note that the returned Texture2D isn't unloaded automatically, so you need to call `runtimeTexture.DestroyTexture()` to unload it manually when you no longer need it!

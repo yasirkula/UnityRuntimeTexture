@@ -1,211 +1,96 @@
-﻿using UnityEditor;
-#if UNITY_2020_2_OR_NEWER
-using UnityEditor.AssetImporters;
-#else
-using UnityEditor.Experimental.AssetImporters;
-#endif
+﻿using System;
+using UnityEditor;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace RuntimeTextureNamespace
 {
-	[CustomEditor( typeof( RuntimeTextureImporter ) )]
-	[CanEditMultipleObjects]
-	public class RuntimeTextureEditor : ScriptedImporterEditor
-	{
-		private Object[] runtimeTextures;
-		private Texture2D[] textures;
+    [CustomEditor(typeof(RuntimeTexture))]
+    [CanEditMultipleObjects]
+    public class RuntimeTextureEditor : Editor
+    {
+        private new RuntimeTexture[] targets;
+        private Texture2D[] textures;
+        private string fileSizeInfoString;
 
-		private SerializedProperty originalSizeProp;
-		private SerializedProperty scaledSizeProp;
-		private SerializedProperty preserveAspectRatioProp;
-		private SerializedProperty paddingProp;
-		private SerializedProperty paddingColorProp;
-		private SerializedProperty readWriteEnabledProp;
-		private SerializedProperty generateMipMapsProp;
-		private SerializedProperty wrapModeProp;
-		private SerializedProperty filterModeProp;
-		private SerializedProperty anisoLevelProp;
-		private SerializedProperty saveAsPNGProp;
-		private SerializedProperty jpegQualityProp;
+        protected void OnEnable()
+        {
+            targets = Array.ConvertAll(base.targets, (e) => (RuntimeTexture)e);
+            textures = new Texture2D[targets.Length];
 
-		private string fileSizeInfoString;
+            ReloadPreviewInstances();
+        }
 
-		private static bool previewShowBackground = false;
-		public override bool showImportedObject { get { return false; } }
+        protected void OnDisable()
+        {
+            if (textures != null)
+            {
+                for (int i = 0; i < textures.Length; i++)
+                    DestroyImmediate(textures[i]);
+            }
+        }
 
-		public override void OnEnable()
-		{
-			base.OnEnable();
+        public override void ReloadPreviewInstances()
+        {
+            base.ReloadPreviewInstances();
 
-			runtimeTextures = targets;
-			textures = new Texture2D[runtimeTextures.Length];
+            long totalSize = 0L;
+            for (int i = 0; i < targets.Length; i++)
+            {
+                if (textures[i] != null)
+                    DestroyImmediate(textures[i]);
 
-			originalSizeProp = serializedObject.FindProperty( "originalSize" );
-			scaledSizeProp = serializedObject.FindProperty( "scaledSize" );
-			preserveAspectRatioProp = serializedObject.FindProperty( "preserveAspectRatio" );
-			paddingProp = serializedObject.FindProperty( "padding" );
-			paddingColorProp = serializedObject.FindProperty( "paddingColor" );
-			readWriteEnabledProp = serializedObject.FindProperty( "readWriteEnabled" );
-			generateMipMapsProp = serializedObject.FindProperty( "generateMipMaps" );
-			wrapModeProp = serializedObject.FindProperty( "wrapMode" );
-			filterModeProp = serializedObject.FindProperty( "filterMode" );
-			anisoLevelProp = serializedObject.FindProperty( "anisoLevel" );
-			saveAsPNGProp = serializedObject.FindProperty( "saveAsPNG" );
-			jpegQualityProp = serializedObject.FindProperty( "jpegQuality" );
+                textures[i] = targets[i].CreateTexture(true);
+                totalSize += targets[i].bytes.LongLength;
+            }
 
-			CalculateFilesize();
-		}
+            if (targets.Length == 1)
+                fileSizeInfoString = $"Size: {EditorUtility.FormatBytes(totalSize)}";
+            else
+                fileSizeInfoString = $"Size: {EditorUtility.FormatBytes(totalSize)} ({targets.Length} objects)";
+        }
 
-		public override void OnDisable()
-		{
-			if( textures != null )
-			{
-				for( int i = 0; i < textures.Length; i++ )
-					DestroyImmediate( textures[i] );
-			}
+        public override bool HasPreviewGUI()
+        {
+            return textures != null && textures.Length > 0;
+        }
 
-			base.OnDisable();
-		}
+        public override void OnPreviewGUI(Rect r, GUIStyle background)
+        {
+            int index = Array.IndexOf(targets, target);
+            if (index < 0)
+                return;
 
-		public override void OnInspectorGUI()
-		{
-#if UNITY_2019_2_OR_NEWER
-			serializedObject.Update();
-#endif
+            // Preserve texture aspect ratio
+            Texture2D texture = textures[index];
+            float aspectRatio = (float)texture.width / texture.height;
+            float width = aspectRatio * r.height;
+            if (width <= r.width)
+            {
+                r.x += (r.width - width) * 0.5f;
+                r.width = width;
+            }
+            else
+            {
+                float height = r.width / aspectRatio;
+                r.y += (r.height - height) * 0.5f;
+                r.height = height;
+            }
 
-			bool guiEnabled = GUI.enabled;
-			GUI.enabled = false;
-			EditorGUILayout.PropertyField( originalSizeProp );
-			GUI.enabled = guiEnabled;
+            EditorGUI.DrawTextureTransparent(r, textures[index]);
+        }
 
-			EditorGUILayout.PropertyField( scaledSizeProp );
-			EditorGUI.indentLevel++;
-			EditorGUILayout.PropertyField( preserveAspectRatioProp );
-			EditorGUI.indentLevel--;
+        // This is used by Unity to generate the icon of the RuntimeTexture in Inspector's header
+        public override Texture2D RenderStaticPreview(string assetPath, Object[] subAssets, int width, int height)
+        {
+            Texture2D result = targets[0].CreateTexture(true);
+            RuntimeTextureImporter.ResizeTexture(ref result, result.format, new Vector2Int(width, height), Vector2Int.zero, Color.clear);
+            return result;
+        }
 
-			EditorGUILayout.PropertyField( paddingProp );
-			EditorGUI.indentLevel++;
-			EditorGUILayout.PropertyField( paddingColorProp );
-			EditorGUI.indentLevel--;
-
-			EditorGUILayout.Space();
-
-			EditorGUILayout.PropertyField( readWriteEnabledProp );
-			EditorGUILayout.PropertyField( generateMipMapsProp );
-			EditorGUILayout.PropertyField( wrapModeProp );
-			EditorGUILayout.PropertyField( filterModeProp );
-			EditorGUILayout.PropertyField( anisoLevelProp );
-
-			// Source: https://github.com/Unity-Technologies/UnityCsReference/blob/61f92bd79ae862c4465d35270f9d1d57befd1761/Editor/Mono/Inspector/TextureInspector.cs#L502-L511
-			if( anisoLevelProp.intValue > 1 )
-			{
-				if( QualitySettings.anisotropicFiltering == AnisotropicFiltering.Disable )
-					EditorGUILayout.HelpBox( "Anisotropic filtering is disabled for all textures in Quality Settings.", MessageType.Info );
-				else if( QualitySettings.anisotropicFiltering == AnisotropicFiltering.ForceEnable )
-					EditorGUILayout.HelpBox( "Anisotropic filtering is enabled for all textures in Quality Settings.", MessageType.Info );
-			}
-
-			EditorGUILayout.Space();
-
-			EditorGUILayout.PropertyField( saveAsPNGProp );
-			if( saveAsPNGProp.hasMultipleDifferentValues || !saveAsPNGProp.boolValue )
-			{
-				EditorGUI.indentLevel++;
-				EditorGUILayout.PropertyField( jpegQualityProp );
-				EditorGUI.indentLevel--;
-			}
-
-			EditorGUILayout.Space();
-
-			EditorGUILayout.HelpBox( fileSizeInfoString, MessageType.None );
-
-#if UNITY_2019_2_OR_NEWER
-			serializedObject.ApplyModifiedProperties();
-#endif
-
-			ApplyRevertGUI();
-		}
-
-		protected override bool OnApplyRevertGUI()
-		{
-			if( base.OnApplyRevertGUI() )
-			{
-				CalculateFilesize();
-				return true;
-			}
-
-			return false;
-		}
-
-		public override bool HasPreviewGUI()
-		{
-			return true;
-		}
-
-		public override void OnPreviewSettings()
-		{
-			previewShowBackground = GUILayout.Toggle( previewShowBackground, previewShowBackground ? "Background: Visible" : "Background: Hidden", EditorStyles.toolbarButton );
-		}
-
-		public override void OnPreviewGUI( Rect r, GUIStyle background )
-		{
-			GUI.Label( r, "", background );
-
-			int index = System.Array.IndexOf( runtimeTextures, target );
-			if( index >= 0 )
-			{
-				// Preserve texture aspect ratio and while displaying the padding area
-				Texture2D texture = textures[index];
-				float aspectRatio = (float) texture.width / texture.height;
-				float width = aspectRatio * r.height;
-				if( width <= r.width )
-				{
-					r.x += ( r.width - width ) * 0.5f;
-					r.width = width;
-				}
-				else
-				{
-					float height = r.width / aspectRatio;
-					r.y += ( r.height - height ) * 0.5f;
-					r.height = height;
-				}
-
-				if( previewShowBackground )
-				{
-					Color c = GUI.color;
-					GUI.color = new Color( 1f, 1f, 1f, 0.5f );
-					GUI.DrawTexture( r, Texture2D.whiteTexture );
-					GUI.color = c;
-				}
-
-				GUI.DrawTexture( r, textures[index] );
-			}
-		}
-
-		private void CalculateFilesize()
-		{
-			long totalSize = 0L;
-			for( int i = 0; i < runtimeTextures.Length; i++ )
-			{
-				RuntimeTexture.IEditorInterface runtimeTexture = AssetDatabase.LoadAssetAtPath<RuntimeTexture>( ( (RuntimeTextureImporter) runtimeTextures[i] ).assetPath );
-				textures[i] = runtimeTexture.Texture;
-				totalSize += runtimeTexture.Length;
-			}
-
-			if( runtimeTextures.Length == 1 )
-				fileSizeInfoString = "Size: " + GetReadableFilesize( totalSize );
-			else
-				fileSizeInfoString = string.Concat( "Size: ", GetReadableFilesize( totalSize ), " (", runtimeTextures.Length, " objects)" );
-		}
-
-		private string GetReadableFilesize( long bytes )
-		{
-			if( bytes >= 1024 * 1024 )
-				return ( (double) bytes / ( 1024 * 1024 ) ).ToString( "F2" ) + "MB";
-			if( bytes >= 1024 )
-				return ( (double) bytes / 1024 ).ToString( "F2" ) + "KB";
-
-			return bytes + " bytes";
-		}
-	}
+        public override string GetInfoString()
+        {
+            return fileSizeInfoString;
+        }
+    }
 }
